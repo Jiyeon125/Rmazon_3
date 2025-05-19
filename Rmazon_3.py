@@ -14,7 +14,7 @@ def load_data():
 
 df = load_data()
 
-st.title("📊 유사 제품 추천 및 비교 도구")
+st.title("📊 시장 내 유사 제품 탐색기")
 
 # 🔍 카테고리 검색 + 선택
 category_list = sorted(df['category'].dropna().unique().tolist())
@@ -30,7 +30,7 @@ rating = st.slider("평점", 0.0, 5.0, 4.2)
 review_count = st.number_input("리뷰 수", min_value=0, value=150)
 discount_pct = st.slider("할인율 (%)", 0, 100, 20)
 
-if st.button("유사 제품 추천"):
+if st.button("유사 제품 탐색하기"):
     if selected_category is None:
         st.warning("카테고리를 먼저 검색 후 선택해 주세요.")
     else:
@@ -69,5 +69,5 @@ if st.button("유사 제품 추천"):
         top_matches = cluster_members.sort_values('distance').head(3)
 
         # ✅ 출력
-        st.subheader("📋 유사한 상위 3개 제품")
+        st.subheader("📋 가장 유사한 상위 3개 제품")
         st.dataframe(top_matches[['product_name', 'discounted_price', 'rating', 'rating_count', 'discount_percentage', 'distance']])
