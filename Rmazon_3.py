@@ -113,6 +113,19 @@ if st.button("시장 내 유사 상품 탐색하기"):
                         st.markdown(f"**Distance**: `{row['distance']:.4f}`")
                         st.markdown(f"`정가`: ₹{int(row['actual_price'])} / `할인율`: {int(row['discount_percentage'])}% / `할인가`: ₹{int(row['discounted_price'])}")
                         st.markdown(f"`평점`: {row.get('rating', 'N/A')} ⭐ / `리뷰 수`: {row.get('rating_count', 'N/A')}")
+                        # 🧠 개별 제품 리뷰 요약 추가
+                        summary_text = row.get("full_summary", "")
+                        if pd.notna(summary_text) and summary_text.strip():
+                            try:
+                                with st.spinner("AI가 해당 제품의 리뷰 요약 중..."):
+                                    review_summary = t5_summarize(summary_text, max_length=50)
+                                    st.markdown(f"🧠 **AI 리뷰 요약:** {review_summary}")
+                            except Exception as e:
+                                st.markdown("🧠 **AI 리뷰 요약:** (요약 실패)")
+                                st.error(str(e))
+                        else:
+                            st.markdown("🧠 **AI 리뷰 요약:** (리뷰 요약 정보 없음)")
+
 
                 # 🧠 AI 리뷰 요약
                 if 'full_summary' in cluster_members.columns:
