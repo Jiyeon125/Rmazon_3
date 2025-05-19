@@ -4,6 +4,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 # 📂 데이터 불러오기
 @st.cache_data
@@ -14,24 +15,36 @@ def load_data():
 
 df = load_data()
 
+# 🧠 T5 모델 불러오기
+@st.cache_resource
+def load_t5_model():
+    tokenizer = T5Tokenizer.from_pretrained("t5-base")
+    model = T5ForConditionalGeneration.from_pretrained("t5-base")
+    return tokenizer, model
+
+tokenizer, t5_model = load_t5_model()
+
+def t5_summarize(text, max_length=100):
+    input_text = "summarize: " + text.strip().replace("\n", " ")
+    inputs = tokenizer.encode(input_text, return_tensors="pt", truncation=True)
+    outputs = t5_model.generate(inputs, max_length=max_length, num_beams=4, early_stopping=True)
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+# 💬 화면 구성
 st.title("🧭 예비 판매자를 위한 시장 내 유사 상품 탐색기")
 
-# 🔍 카테고리 자동완성
 category_list = sorted(df['category'].dropna().unique().tolist())
 typed = st.text_input("카테고리 검색", "")
 filtered_categories = [cat for cat in category_list if typed.lower() in cat.lower()]
 selected_category = st.selectbox("카테고리 선택", filtered_categories) if filtered_categories else None
 
-# 💬 제품 설명 입력 + 가격/할인율
 product_desc = st.text_area("상품 설명 입력", placeholder="예시: Outdoor camping gear with solar panel")
 actual_price = st.number_input("정가 (₹)", min_value=0, value=3000)
 discount_pct = st.slider("할인율 (%)", 0, 100, 20)
-
-# 💸 자동 계산된 할인가 표시
 discounted_price = int(actual_price * (1 - discount_pct / 100))
 st.markdown(f"**할인가 (자동 계산): ₹{discounted_price}**")
 
-# ▶️ 버튼 클릭 시 실행
+# ▶️ 실행
 if st.button("시장 내 유사 상품 탐색하기"):
     if selected_category is None:
         st.warning("카테고리를 먼저 검색 후 선택해 주세요.")
@@ -39,7 +52,7 @@ if st.button("시장 내 유사 상품 탐색하기"):
         df_filtered = df[df['category'] == selected_category]
 
         if len(df_filtered) < 5:
-            st.error("선택한 카테고리 내 제품 수가 너무 적습니다. 다른 카테고리를 선택해 주세요.")
+            st.error("선택한 카테고리 내 제품 수가 너무 적습니다.")
         else:
             tfidf = TfidfVectorizer(stop_words='english', max_features=1000)
             tfidf_matrix = tfidf.fit_transform(df_filtered['about_product'])
@@ -51,19 +64,18 @@ if st.button("시장 내 유사 상품 탐색하기"):
             candidate_df = df_filtered.iloc[top_indices].copy()
 
             if len(candidate_df) < 3:
-                st.error("유사한 제품이 3개 미만입니다. 설명을 다시 입력하거나 다른 카테고리를 선택해 주세요.")
+                st.error("유사한 제품이 3개 미만입니다.")
             else:
-                # 🎯 유사도 진단
                 mean_sim = cos_sim[0][top_indices].mean()
                 max_sim = cos_sim[0][top_indices].max()
 
                 similarity_warnings = []
                 if mean_sim < 0.05:
-                    similarity_warnings.append("⚠️ 입력한 설명이 다른 제품들과 전반적으로 크게 다릅니다. 유사 제품 목록의 정확도가 낮을 수 있습니다. (평균 유사도 낮음)\n권장: 설명을 더 구체적으로 작성해 보세요.")
+                    similarity_warnings.append("⚠️ 입력한 설명이 다른 제품들과 전반적으로 크게 다릅니다. (평균 유사도 낮음)\n권장: 설명을 더 구체적으로 작성해 보세요.")
                 if max_sim < 0.1:
-                    similarity_warnings.append("⚠️ 입력한 설명과 매우 유사한 제품이 거의 없습니다. 유사 제품 목록의 정확도가 낮을 수 있습니다. (최고 유사도 낮음)")
+                    similarity_warnings.append("⚠️ 입력한 설명과 매우 유사한 제품이 거의 없습니다. (최고 유사도 낮음)")
 
-                # ✅ 클러스터링
+                # 클러스터링
                 num_cols = ['actual_price', 'discount_percentage']
                 candidate_df['actual_price'] = candidate_df['discounted_price'] / (1 - candidate_df['discount_percentage'] / 100)
                 X = candidate_df[['actual_price', 'discount_percentage']]
@@ -86,13 +98,12 @@ if st.button("시장 내 유사 상품 탐색하기"):
 
                 top_matches = cluster_members.sort_values('distance').head(3).reset_index(drop=True)
 
-                # ⚠️ 경고 먼저 출력
+                # ⚠️ 경고 출력
                 if similarity_warnings:
                     st.warning("\n\n".join(similarity_warnings))
 
-                # ✅ 카드 형태 결과 출력
+                # 📋 결과 출력
                 st.subheader("📋 유사한 상위 3개 제품")
-
                 for i, row in top_matches.iterrows():
                     st.markdown(f"### {i+1}위. {row['product_name']}")
                     cols = st.columns([1, 3])
@@ -102,3 +113,12 @@ if st.button("시장 내 유사 상품 탐색하기"):
                         st.markdown(f"**Distance**: `{row['distance']:.4f}`")
                         st.markdown(f"`정가`: ₹{int(row['actual_price'])} / `할인율`: {int(row['discount_percentage'])}% / `할인가`: ₹{int(row['discounted_price'])}")
                         st.markdown(f"`평점`: {row.get('rating', 'N/A')} ⭐ / `리뷰 수`: {row.get('rating_count', 'N/A')}")
+
+                # 🧠 AI 리뷰 요약
+                if 'full_summary' in cluster_members.columns:
+                    review_text = " ".join(top_matches['full_summary'].dropna().astype(str).tolist())
+                    if review_text.strip():
+                        with st.spinner("AI가 리뷰 요약 중입니다..."):
+                            summary = t5_summarize(review_text, max_length=100)
+                        st.subheader("🧠 AI 리뷰 요약")
+                        st.markdown(f"> {summary}")
