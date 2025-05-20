@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from transformers import T5Tokenizer, T5ForConditionalGeneration
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 # 📂 데이터 로딩 및 정가 계산
 def load_data():
@@ -17,8 +17,8 @@ def load_data():
 
 @st.cache_data
 def load_tokenizer_model():
-    tokenizer = T5Tokenizer.from_pretrained("t5-base")
-    model = T5ForConditionalGeneration.from_pretrained("t5-base")
+    tokenizer = AutoTokenizer.from_pretrained("t5-base")
+    model = AutoModelForSeq2SeqLM.from_pretrained("t5-base")
     return tokenizer, model
 
 def t5_summarize(text, max_length=50):
