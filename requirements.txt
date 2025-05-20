@@ -4,5 +4,5 @@ scikit-learn
 numpy
 matplotlib
 transformers
-torch
+torch>=2.0,<2.2
 sentencepiece
