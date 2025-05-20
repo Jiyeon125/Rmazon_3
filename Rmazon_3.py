@@ -29,6 +29,7 @@ def t5_summarize(text, max_length=50):
 
 # ✅ 데이터 준비
 st.title("🧭 예비 판매자를 위한 시장 유사 제품 탐색기")
+st.markdown("*앱 첫 구동 시 로딩 시간이 조금 길 수 있습니다.")
 df = load_data()
 tokenizer, model = load_tokenizer_model()
 
