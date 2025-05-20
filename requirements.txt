@@ -1,8 +1,8 @@
-streamlit
-pandas
-scikit-learn
-numpy
-matplotlib
-transformers
-torch
-sentencepiece
+streamlit==1.33.0
+pandas==2.2.2
+scikit-learn==1.4.2
+numpy==1.26.4
+matplotlib==3.8.4
+transformers==4.38.2
+torch==2.2.2
+sentencepiece==0.2.0
